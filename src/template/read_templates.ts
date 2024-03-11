@@ -1,10 +1,11 @@
 // Copyright (c) 2024 Marcin Zdun
 // This code is licensed under MIT license (see LICENSE for details)
 
+import * as path from 'https://deno.land/std@0.218.0/path/mod.ts';
 import { walk, WalkError } from 'https://deno.land/std@0.218.0/fs/walk.ts';
 import { GitIgnore, isExcluded, readGitIgnore } from '../git/mod.ts';
 import { templatePath } from '../path.ts';
-import { FileTemplate, Template, TemplateType } from './model.ts';
+import { Template, TemplateType } from './model.ts';
 import { readTemplate } from './read_template.ts';
 import { compile } from '../git/mod.ts';
 
@@ -42,13 +43,8 @@ export async function readTemplates(
 			}
 
 			if (entry.isSymlink) {
-				storeTemplate(
-					{
-						filename,
-						type: TemplateType.Symlink,
-						symlink: await Deno.readLink(entry.path),
-					},
-				);
+				const symlink = templatePath(path.dirname(entry.path), await Deno.readLink(entry.path));
+				storeTemplate({ filename, type: TemplateType.Symlink, symlink });
 				continue;
 			}
 

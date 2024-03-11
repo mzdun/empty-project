@@ -15,8 +15,8 @@ console.log(args);
 
 try {
 	await Deno.remove(args.output, { recursive: true });
-} catch (_e) {
-	// empty
+} catch (e) {
+	if (e.code == 'EBUSY') throw e;
 }
 
 await Deno.mkdir(args.output, { recursive: true });
@@ -68,7 +68,7 @@ const symlinks: SymlinkTemplate[] = [];
 const [filesToAdd, execFilesToAdd]: string[][] = [[], []];
 
 await readTemplates(args.template, gitModules, async (file) => {
-	const exeFlag = execs.has(file.filename) ? 'x' : '-';
+	const exeFlag = execs.has(file.filename) ? 'rwxr-xr-x' : 'rw-r--r--';
 	const filename = `${posixPath(path.join(args.output, file.filename))}`;
 	(execs.has(file.filename) ? execFilesToAdd : filesToAdd).push(file.filename);
 	if (file.type === TemplateType.Symlink) {
@@ -76,22 +76,28 @@ await readTemplates(args.template, gitModules, async (file) => {
 		return;
 	}
 
-	let size = 0;
 	if (file.type === TemplateType.File) {
-		size = await copyFile(filename, [{ prefix: file.content }], _vars);
+		await copyFile(filename, [{ prefix: file.content }], _vars);
 	} else if (file.type === TemplateType.Variable) {
-		size = await copyFile(filename, file.chunks, _vars);
+		await copyFile(filename, file.chunks, _vars);
 	}
 
-	console.log(`-${exeFlag} ${filename}: ${size}`);
+	console.log(`-${exeFlag} ${filename}`);
 });
 
 for (const link of symlinks) {
-	const exeFlag = execs.has(link.filename) ? 'x' : '-';
+	const exeFlag = execs.has(link.filename) ? 'rwxr-xr-x' : 'rw-r--r--';
 	const newName = path.join(args.output, link.filename);
 	const oldName = path.join(path.dirname(newName), link.symlink);
-	await Deno.symlink(oldName, newName);
-	console.log(`s${exeFlag} ${posixPath(newName)} -> ${link.symlink}`);
+	const isDirectory = (await Deno.statSync(oldName)).isDirectory;
+	await Deno.symlink(link.symlink, newName, { type: isDirectory ? 'dir' : 'file' });
+	console.log(`l${exeFlag} ${posixPath(newName)} -> ${link.symlink}`);
 }
 
 await gitAdd(args.output, filesToAdd).then(() => gitAdd(args.output, execFilesToAdd, true));
+if (Deno.build.os !== 'windows') {
+	for (const file of execFilesToAdd) {
+		console.log(path.join(args.output, file));
+		await Deno.chmod(path.join(args.output, file), 0o755);
+	}
+}

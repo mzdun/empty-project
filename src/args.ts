@@ -5,6 +5,8 @@ import * as path from 'https://deno.land/std@0.218.0/path/mod.ts';
 import { parseArgs } from 'https://deno.land/std@0.218.0/cli/parse_args.ts';
 import { quoteString } from './template/mod.ts';
 
+const CXX_STANDARD = '23';
+
 function getModuleDir(importMeta: ImportMeta): string {
 	return path.resolve(path.dirname(path.dirname(path.fromFileUrl(importMeta.url))));
 }
@@ -26,7 +28,8 @@ Optional flags:
   -p --prefix <val>      value for the @APP_PREFIX@ variable; defaults to APP_NAME, upper cased and with all dashes replaced by underscore
                          (e.g. UNKNOWN_PROJECT)
   -d --description <val> value for the @APP_DESCRIPTION@ variable
-  -o --output <dir>      value of the directory to put the template in; defaults to APP_NAME`);
+  -o --output <dir>      value of the directory to put the template in; defaults to APP_NAME
+  --std <val>            C++ standard to use in the project; defaults to ${CXX_STANDARD}`);
 
 	const vars = Object.entries(VARS);
 	if (vars.length > 0) {
@@ -42,9 +45,13 @@ ${
 
 export function getArgs() {
 	const boolean = ['help'];
-	const string = ['tag', 'template', 'name', 'prefix', 'description', 'output'];
+	const string = ['tag', 'template', 'name', 'prefix', 'description', 'output', 'std'];
 	const alias = { help: 'h', template: 't', name: 'n', prefix: 'p', description: 'd', output: 'o' };
-	const defaults = { template: path.join(getModuleDir(import.meta), 'template'), name: 'unknown-project' };
+	const defaults = {
+		template: path.join(getModuleDir(import.meta), 'template'),
+		name: 'unknown-project',
+		std: CXX_STANDARD,
+	};
 	const args = parseArgs(Deno.args, { boolean, string, alias, default: defaults });
 
 	const known = new Set([...boolean, ...string, ...Object.keys(alias), ...Object.values(alias), '_']);
@@ -57,15 +64,17 @@ export function getArgs() {
 	}
 
 	const template = args.template ?? path.join(getModuleDir(import.meta), 'template');
-	const name = args.name ?? 'unknown-project';
+	const name = args.name;
 	const prefix = args.prefix ?? name.toUpperCase().replace(/-/g, '_');
 	const description = args.description;
 	const output = args.output ?? name;
+	const std = args.std;
 
 	const VARS: Record<string, string | undefined> = {
 		APP_NAME: name,
 		APP_PREFIX: prefix,
 		APP_DESCRIPTION: description,
+		CXX_STANDARD: std,
 	};
 
 	if (args.help) {

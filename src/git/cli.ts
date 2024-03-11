@@ -26,10 +26,11 @@ async function runGit(options?: Deno.CommandOptions) {
 }
 
 export async function gitTopLevel(cwd: string) {
-	const { stdout } = await runGit({
+	const cmd = new Deno.Command('git', {
 		args: ['rev-parse', '--show-toplevel'],
 		cwd,
 	});
+	const { stdout } = await cmd.output();
 	if (stdout.length === 0) return undefined;
 	return new TextDecoder('utf-8').decode(stdout).trim();
 }
