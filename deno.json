@@ -1,0 +1,23 @@
+{
+    "tasks": {
+        "dev": "deno run --allow-read --allow-write --allow-net --allow-run --watch main.ts",
+        "main": "deno run --allow-read --allow-write --allow-net --allow-run main.ts",
+        "test": "deno test --allow-read"
+    },
+    "fmt": {
+        "useTabs": true,
+        "lineWidth": 120,
+        "indentWidth": 4,
+        "semiColons": true,
+        "singleQuote": true,
+        "proseWrap": "preserve",
+        "include": [
+            "src/",
+            "main.ts"
+        ],
+        "exclude": [
+            "src/testdata/",
+            "data/fixtures/**/*.ts"
+        ]
+    }
+}
