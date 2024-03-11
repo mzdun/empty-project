@@ -1,0 +1,10 @@
+[requires]
+mbits-args/0.12.3
+fmt/10.2.0
+gtest/cci.20210126
+ctre/3.7.2
+
+[generators]
+CMakeDeps
+CMakeToolchain
+VirtualRunEnv
