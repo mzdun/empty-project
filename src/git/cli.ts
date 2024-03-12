@@ -17,7 +17,7 @@ export interface GitLsFile {
 	name: string;
 }
 
-async function runGit(options?: Deno.CommandOptions) {
+async function _runGit(options?: Deno.CommandOptions) {
 	const cmd = new Deno.Command('git', options);
 	const result = await cmd.output();
 	const { stderr } = result;
@@ -25,7 +25,7 @@ async function runGit(options?: Deno.CommandOptions) {
 	return result;
 }
 
-export async function gitTopLevel(cwd: string) {
+async function _gitTopLevel(cwd: string) {
 	const cmd = new Deno.Command('git', {
 		args: ['rev-parse', '--show-toplevel'],
 		cwd,
@@ -35,23 +35,23 @@ export async function gitTopLevel(cwd: string) {
 	return new TextDecoder('utf-8').decode(stdout).trim();
 }
 
-export async function gitInit(cwd: string) {
-	await runGit({
+async function _gitInit(cwd: string) {
+	await _internal.runGit({
 		args: ['init'],
 		cwd,
 	});
 }
 
-export async function gitAdd(cwd: string, paths: string[], isExecutable?: boolean) {
-	const { stdout } = await runGit({
+async function _gitAdd(cwd: string, paths: string[], isExecutable?: boolean) {
+	const { stdout } = await _internal.runGit({
 		args: isExecutable ? ['add', '--chmod=+x', ...paths] : ['add', ...paths],
 		cwd,
 	});
 	if (stdout.length) console.log(new TextDecoder().decode(stdout).trim());
 }
 
-export async function gitLsFiles(cwd: string) {
-	const { stdout } = await runGit({
+async function _gitLsFiles(cwd: string) {
+	const { stdout } = await _internal.runGit({
 		args: ['ls-files', '-s'],
 		cwd,
 	});
@@ -67,16 +67,53 @@ export async function gitLsFiles(cwd: string) {
 const mapName = (cwd: string, topLevel: string) => ({ name }: GitLsFile) =>
 	posixPath(path.relative(cwd, path.resolve(path.join(topLevel, name))));
 
-export async function gitExecutableFiles(cwd: string) {
-	const topLevel = await gitTopLevel(cwd);
-	if (topLevel === undefined) return undefined;
-	const mapper = mapName(cwd, topLevel);
-	return (await gitLsFiles(topLevel)).filter(({ mode }) => mode === GitFilesMode.EXE).map(mapper);
-}
+export const _internal = {
+	runGit: _runGit,
+	gitTopLevel: _gitTopLevel,
+	gitInit: _gitInit,
+	gitLsFiles: _gitLsFiles,
+	gitAdd: _gitAdd,
+};
 
-export async function gitSubmodules(cwd: string) {
-	const topLevel = await gitTopLevel(cwd);
-	if (topLevel === undefined) return undefined;
-	const mapper = mapName(cwd, topLevel);
-	return (await gitLsFiles(topLevel)).filter(({ mode }) => mode === GitFilesMode.MODULE).map(mapper);
+export interface GitInitOptions {
+	init?: boolean;
+	lsFiles?: boolean;
+}
+export class Git {
+	topLevel?: string;
+	files: GitLsFile[] = [];
+	ready: Promise<void>;
+	constructor(public readonly cwd: string, options?: GitInitOptions) {
+		this.ready = this.#init(options);
+	}
+
+	async #init({ init, lsFiles }: GitInitOptions = {}) {
+		this.topLevel = await _internal.gitTopLevel(this.cwd);
+		if (this.topLevel === undefined) {
+			if (!init) return;
+			await _internal.gitInit(this.cwd);
+			this.topLevel = await _internal.gitTopLevel(this.cwd);
+			if (this.topLevel === undefined) return;
+		}
+		if (lsFiles) this.files = await _internal.gitLsFiles(this.topLevel);
+	}
+
+	async lsFilesFilteredBy(filter: GitFilesMode) {
+		await this.ready;
+		if (!this.topLevel) return [];
+		const mapper = mapName(this.cwd, this.topLevel);
+		return this.files.filter(({ mode }) => mode === filter).map(mapper);
+	}
+
+	async executableFiles() {
+		return await this.lsFilesFilteredBy(GitFilesMode.EXE);
+	}
+
+	async submodules() {
+		return await this.lsFilesFilteredBy(GitFilesMode.MODULE);
+	}
+
+	async add(paths: string[], isExecutable?: boolean) {
+		return await _internal.gitAdd(this.cwd, paths, isExecutable);
+	}
 }

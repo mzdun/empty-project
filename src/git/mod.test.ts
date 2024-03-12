@@ -90,7 +90,7 @@ dist/
 `),
 	);
 
-	const [projectGitIgnore] = await readGitIgnore('project/.gitignore');
+	const [projectGitIgnore] = await readGitIgnore('project/.gitignore', '');
 
 	const tests: ExcludeTest[] = [{
 		gitignore: {
