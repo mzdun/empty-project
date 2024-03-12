@@ -56,6 +56,14 @@ export class Variables {
 		if (variable.type == VarType.String) return variable.value;
 		return variable.call(varName, this);
 	}
+
+	static createCMakeSetup() {
+		const vars = new Variables();
+		vars.add(createQuotable());
+		vars.add(createQuoted());
+		vars.add(createReflect('PROJECT_', true));
+		return vars;
+	}
 }
 
 export type Variable = VariableT<Variables>;

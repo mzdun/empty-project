@@ -5,3 +5,4 @@ export * from './model.ts';
 export * from './read_template.ts';
 export * from './read_templates.ts';
 export * from './variables.ts';
+export * from './template_writer.ts';

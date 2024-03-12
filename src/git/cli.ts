@@ -82,24 +82,25 @@ export interface GitInitOptions {
 export class Git {
 	topLevel?: string;
 	files: GitLsFile[] = [];
-	ready: Promise<void>;
+	initialized: Promise<Git>;
 	constructor(public readonly cwd: string, options?: GitInitOptions) {
-		this.ready = this.#init(options);
+		this.initialized = this.#init(options);
 	}
 
 	async #init({ init, lsFiles }: GitInitOptions = {}) {
 		this.topLevel = await _internal.gitTopLevel(this.cwd);
 		if (this.topLevel === undefined) {
-			if (!init) return;
+			if (!init) return this;
 			await _internal.gitInit(this.cwd);
 			this.topLevel = await _internal.gitTopLevel(this.cwd);
-			if (this.topLevel === undefined) return;
+			if (this.topLevel === undefined) return this;
 		}
 		if (lsFiles) this.files = await _internal.gitLsFiles(this.topLevel);
+		return this;
 	}
 
 	async lsFilesFilteredBy(filter: GitFilesMode) {
-		await this.ready;
+		await this.initialized;
 		if (!this.topLevel) return [];
 		const mapper = mapName(this.cwd, this.topLevel);
 		return this.files.filter(({ mode }) => mode === filter).map(mapper);

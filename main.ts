@@ -1,103 +1,40 @@
 // Copyright (c) 2024 Marcin Zdun
 // This code is licensed under MIT license (see LICENSE for details)
 
-import * as path from 'https://deno.land/std@0.218.0/path/mod.ts';
-import { readTemplates, SymlinkTemplate, TemplateType, TemplateVar } from './src/template/mod.ts';
-import { gitExecutableFiles, gitSubmodules, gitTopLevel } from './src/git/mod.ts';
-import { createQuotable, createQuoted, createReflect, Variables, VarType } from './src/template/mod.ts';
+import { Git } from './src/git/mod.ts';
 import { getArgs } from './src/args.ts';
-import { posixPath } from './src/path.ts';
-import { gitInit } from './src/git/cli.ts';
-import { gitAdd } from './src/git/cli.ts';
+import { TemplateWriter } from './src/template/mod.ts';
 
-const args = getArgs();
-console.log(args);
-
-try {
-	await Deno.remove(args.output, { recursive: true });
-} catch (e) {
-	if (e.code == 'EBUSY') throw e;
-}
-
-await Deno.mkdir(args.output, { recursive: true });
-if ((await gitTopLevel(args.output)) === undefined) {
-	await gitInit(args.output);
-}
-
-const gitExecs = await gitExecutableFiles(args.template);
-const gitModules = (await gitSubmodules(args.template) ?? []).map((dir) => `/${dir}`);
-
-const execs = new Set(gitExecs ?? []);
-
-const _vars = new Variables();
-_vars.add(createQuotable());
-_vars.add(createQuoted());
-_vars.add(createReflect('PROJECT_', true));
-_vars.add({ key: 'YEAR', type: VarType.String, value: `${new Date().getFullYear()}` });
-Object.entries(args.VARS).forEach(([key, value]) => {
-	if (value != undefined) {
-		_vars.add({ key, type: VarType.String, isQuotable: true, value });
-	}
-});
-
-async function copyFile(filename: string, chunks: TemplateVar[], vars: Variables) {
-	await Deno.mkdir(path.dirname(filename), { recursive: true });
-
-	const output = await Deno.open(filename, { create: true, write: true });
-	let length = 0;
+export async function openDstRepo(directory: string) {
 	try {
-		const encoder = new TextEncoder();
-		for (const { prefix, varname } of chunks) {
-			await output.write(prefix);
-			length += prefix.length;
-
-			if (varname !== undefined) {
-				const value = vars.encoded(varname, encoder);
-				await output.write(value);
-				length += value.length;
-			}
-		}
-	} finally {
-		output.close();
+		await Deno.remove(directory, { recursive: true });
+	} catch (e) {
+		if (e.code == 'EBUSY') throw e;
 	}
 
-	return length;
+	await Deno.mkdir(directory, { recursive: true });
+	return await new Git(directory, { init: true }).initialized;
 }
 
-const symlinks: SymlinkTemplate[] = [];
-const [filesToAdd, execFilesToAdd]: string[][] = [[], []];
+export async function copyTemplates(repo: Git, input: string, vars: Record<string, string | undefined>) {
+	const { execs, excluded } = await (async () => {
+		const srcRepo = new Git(input, { lsFiles: true });
+		const execs = new Set(await srcRepo.executableFiles());
+		const excluded = (await srcRepo.submodules()).map((dir) => `/${dir}`);
+		return { execs, excluded };
+	})();
 
-await readTemplates(args.template, gitModules, async (file) => {
-	const exeFlag = execs.has(file.filename) ? 'rwxr-xr-x' : 'rw-r--r--';
-	const filename = `${posixPath(path.join(args.output, file.filename))}`;
-	(execs.has(file.filename) ? execFilesToAdd : filesToAdd).push(file.filename);
-	if (file.type === TemplateType.Symlink) {
-		symlinks.push(file);
-		return;
-	}
-
-	if (file.type === TemplateType.File) {
-		await copyFile(filename, [{ prefix: file.content }], _vars);
-	} else if (file.type === TemplateType.Variable) {
-		await copyFile(filename, file.chunks, _vars);
-	}
-
-	console.log(`-${exeFlag} ${filename}`);
-});
-
-for (const link of symlinks) {
-	const exeFlag = execs.has(link.filename) ? 'rwxr-xr-x' : 'rw-r--r--';
-	const newName = path.join(args.output, link.filename);
-	const oldName = path.join(path.dirname(newName), link.symlink);
-	const isDirectory = (await Deno.statSync(oldName)).isDirectory;
-	await Deno.symlink(link.symlink, newName, { type: isDirectory ? 'dir' : 'file' });
-	console.log(`l${exeFlag} ${posixPath(newName)} -> ${link.symlink}`);
+	await new TemplateWriter(repo, execs, vars).copyTemplates(input, excluded);
 }
 
-await gitAdd(args.output, filesToAdd).then(() => gitAdd(args.output, execFilesToAdd, true));
-if (Deno.build.os !== 'windows') {
-	for (const file of execFilesToAdd) {
-		console.log(path.join(args.output, file));
-		await Deno.chmod(path.join(args.output, file), 0o755);
-	}
+async function _main() {
+	const args = getArgs();
+	console.log(args);
+
+	const repo = await openDstRepo(args.output);
+	await copyTemplates(repo, args.template, args.VARS);
+}
+
+if (import.meta.main) {
+	await _main();
 }
