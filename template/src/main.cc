@@ -10,4 +10,7 @@
 
 using namespace std::literals;
 
-int tool(::args::args_view const& args) { return 0; }
+int tool(::args::args_view const& args) {
+	fmt::print("Hello, {}!\n", "World");
+	return 0;
+}
