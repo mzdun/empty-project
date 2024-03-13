@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2023 Marcin Zdun
+# Copyright (c) @YEAR@ @APP_AUTHOR@
 # This code is licensed under MIT license (see LICENSE for details)
 
 import zipfile

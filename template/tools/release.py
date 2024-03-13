@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2023 Marcin Zdun
+# Copyright (c) @YEAR@ @APP_AUTHOR@
 # This code is licensed under MIT license (see LICENSE for details)
 
 import argparse
@@ -19,7 +19,7 @@ from github.git import add_files, annotated_tag, bump_version, commit, get_log, 
 from github.runner import Environment, print_args, checked
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GITHUB_ORG = "mzdun"
+GITHUB_ORG = "@APP_GITHUB_ORG@"
 SCOPE_FIX = {"ws": "webapi", "rest": "webapi", "lngs": "lang"}
 
 #####################################################################

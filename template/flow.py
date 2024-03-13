@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) @YEAR@ Marcin Zdun
+# Copyright (c) @YEAR@ @APP_AUTHOR@
 # This code is licensed under MIT license (see LICENSE for details)
 
 import os
