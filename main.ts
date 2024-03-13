@@ -2,7 +2,7 @@
 // This code is licensed under MIT license (see LICENSE for details)
 
 import { Git } from './src/git/mod.ts';
-import { getArgs } from './src/args.ts';
+import { getArgs, printedVars } from './src/args.ts';
 import { TemplateWriter } from './src/template/mod.ts';
 
 export async function openDstRepo(directory: string) {
@@ -29,9 +29,25 @@ export async function copyTemplates(repo: Git, input: string, vars: Record<strin
 
 async function _main() {
 	const args = getArgs();
-	console.log(args);
-
 	const repo = await openDstRepo(args.output);
+
+	await Promise.all(([
+		['APP_AUTHOR', () => repo.userName()],
+		['APP_AUTHOR_EMAIL', () => repo.userEmail()],
+	] as [string, () => Promise<string>][]).map(async ([key, getter]) => {
+		if (args.VARS[key] === undefined) {
+			args.VARS[key] = await getter();
+		}
+	}));
+
+	console.log(`Creating ${args.output} from ${args.template}`);
+	const vars = printedVars(args.VARS);
+	if (vars.length) {
+		console.log('Using:');
+		console.log(vars);
+	}
+	console.log('');
+
 	await copyTemplates(repo, args.template, args.VARS);
 }
 

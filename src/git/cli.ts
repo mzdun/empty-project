@@ -64,6 +64,15 @@ async function _gitLsFiles(cwd: string) {
 	});
 }
 
+async function _gitGetConfig(cwd: string, key: string) {
+	const { stdout } = await _internal.runGit({
+		args: ['config', key],
+		cwd,
+	});
+
+	return new TextDecoder('utf-8').decode(stdout).trim();
+}
+
 const mapName = (cwd: string, topLevel: string) => ({ name }: GitLsFile) =>
 	posixPath(path.relative(cwd, path.resolve(path.join(topLevel, name))));
 
@@ -73,6 +82,7 @@ export const _internal = {
 	gitInit: _gitInit,
 	gitLsFiles: _gitLsFiles,
 	gitAdd: _gitAdd,
+	gitGetConfig: _gitGetConfig,
 };
 
 export interface GitInitOptions {
@@ -116,5 +126,13 @@ export class Git {
 
 	async add(paths: string[], isExecutable?: boolean) {
 		return await _internal.gitAdd(this.cwd, paths, isExecutable);
+	}
+
+	async userName() {
+		return await _internal.gitGetConfig(this.cwd, 'user.name');
+	}
+
+	async userEmail() {
+		return await _internal.gitGetConfig(this.cwd, 'user.email');
 	}
 }
