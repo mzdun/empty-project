@@ -16,17 +16,18 @@ function apply<T, Q>(value: T | undefined, fn: (t: T) => Q): Q | undefined {
 interface VariableInfo {
 	name: string[];
 	help?: string;
+	required?: boolean;
 	default?: string;
 	defaultsTo?: string;
 	canHaveEpVar?: boolean;
 }
 const VARIABLES: Record<string, VariableInfo> = {
-	APP_NAME: { name: ['n', 'name'], default: 'unknown-project' },
+	APP_NAME: { name: ['n', 'name'], required: true },
+	APP_DESCRIPTION: { name: ['d', 'description'], required: true },
 	APP_PREFIX: {
 		name: ['p', 'prefix'],
 		defaultsTo: 'APP_NAME, upper cased and with all dashes replaced by underscore (e.g. "UNKNOWN_PROJECT")',
 	},
-	APP_DESCRIPTION: { name: ['d', 'description'] },
 	APP_AUTHOR: { name: ['a', 'author'], defaultsTo: "Git's user.name inside output directory", canHaveEpVar: true },
 	APP_AUTHOR_EMAIL: {
 		name: ['ae', 'author-email'],
@@ -123,7 +124,9 @@ function usage({ error, VARS = {} }: { error?: string; VARS?: Record<string, str
 
 	console.log(
 		`empty-project [-h] [-t <dir>] [-o <dir>] ${
-			Object.values(VARIABLES).map((info) => `[${argName(info.name[0])} <val>]`).join(' ')
+			Object.values(VARIABLES).map((info) =>
+				info.required ? `${argName(info.name[0])} <val>` : `[${argName(info.name[0])} <val>]`
+			).join(' ')
 		}`,
 	);
 	if (error) {
@@ -173,6 +176,13 @@ export function getArgs() {
 	if (unknown !== undefined) {
 		const errName = unknown.length === 1 ? `-${unknown}` : `--${unknown}`;
 		usage({ error: `Unknown argument: ${errName}` });
+		Deno.exit(1);
+	}
+
+	const missing = Object.values(VARIABLES).find((info) => info.required && args[info.name[0]] === undefined);
+	if (missing !== undefined) {
+		const errName = missing.name[0].length === 1 ? `-${missing.name[0]}` : `--${missing.name[0]}`;
+		usage({ error: `Required argument missing: ${errName}` });
 		Deno.exit(1);
 	}
 
