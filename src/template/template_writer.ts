@@ -31,6 +31,7 @@ export class TemplateWriter {
 		public readonly repo: Git,
 		public readonly execs: Set<string>,
 		vars: Record<string, string | undefined>,
+		onMissingVariable?: (_: string) => void,
 	) {
 		this.#vars = Variables.createCMakeSetup();
 		this.#vars.add({ key: 'YEAR', type: VarType.String, value: `${new Date().getFullYear()}` });
@@ -39,6 +40,7 @@ export class TemplateWriter {
 				this.#vars.add({ key, type: VarType.String, isQuotable: true, value });
 			}
 		});
+		this.#vars.onMissing = onMissingVariable;
 	}
 
 	async copyTemplates(dirname: string, excludes: string[]) {

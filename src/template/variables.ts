@@ -27,6 +27,7 @@ export type VariableT<Vars> = StringVariable | DynamicVariableT<Vars>;
 
 export class Variables {
 	#vars: VariableT<Variables>[] = [];
+	onMissing?: (_: string) => void;
 
 	add(variable: VariableT<Variables>) {
 		this.#vars.push(variable);
@@ -37,6 +38,7 @@ export class Variables {
 			const result = this.#convert(varName, variable);
 			if (result !== undefined) return [result, variable];
 		}
+		this.onMissing?.(varName);
 		return [undefined, undefined];
 	}
 	convert(varName: string) {

@@ -16,7 +16,12 @@ export async function openDstRepo(directory: string) {
 	return await new Git(directory, { init: true }).initialized;
 }
 
-export async function copyTemplates(repo: Git, input: string, vars: Record<string, string | undefined>) {
+export async function copyTemplates(
+	repo: Git,
+	input: string,
+	vars: Record<string, string | undefined>,
+	onMissingVariable?: (_: string) => void,
+) {
 	const { execs, excluded } = await (async () => {
 		const srcRepo = new Git(input, { lsFiles: true });
 		const execs = new Set(await srcRepo.executableFiles());
@@ -24,7 +29,7 @@ export async function copyTemplates(repo: Git, input: string, vars: Record<strin
 		return { execs, excluded };
 	})();
 
-	await new TemplateWriter(repo, execs, vars).copyTemplates(input, excluded);
+	await new TemplateWriter(repo, execs, vars, onMissingVariable).copyTemplates(input, excluded);
 }
 
 async function _main() {
@@ -48,7 +53,16 @@ async function _main() {
 	}
 	console.log('');
 
-	await copyTemplates(repo, args.template, args.VARS);
+	const missingVars: Set<string> = new Set();
+	await copyTemplates(repo, args.template, args.VARS, (varName) => missingVars.add(varName));
+
+	if (missingVars.size > 0) {
+		console.warn(
+			`Some used variables were not set:\n${
+				Array.from(missingVars).sort().map((name) => `  - ${name}`).join('\n')
+			}`,
+		);
+	}
 }
 
 if (import.meta.main) {
