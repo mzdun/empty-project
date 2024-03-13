@@ -33,6 +33,8 @@ export async function copyTemplates(
 }
 
 async function _main() {
+	console.log(import.meta);
+
 	const args = getArgs();
 	const repo = await openDstRepo(args.output);
 

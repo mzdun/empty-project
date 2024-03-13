@@ -122,7 +122,7 @@ function usage({ error, VARS = {} }: { error?: string; VARS?: Record<string, str
 	const { columns } = Deno.consoleSize();
 
 	console.log(
-		`deno task main [-h] [-t <dir>] [-o <dir>] ${
+		`empty-project [-h] [-t <dir>] [-o <dir>] ${
 			Object.values(VARIABLES).map((info) => `[${argName(info.name[0])} <val>]`).join(' ')
 		}`,
 	);
