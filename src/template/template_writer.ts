@@ -60,7 +60,6 @@ export class TemplateWriter {
 		await this.repo.add(this.#execFilesToAdd, true);
 		if (Deno.build.os !== 'windows') {
 			for (const file of this.#execFilesToAdd) {
-				console.log(path.join(this.repo.cwd, file));
 				await Deno.chmod(path.join(this.repo.cwd, file), 0o755);
 			}
 		}
@@ -146,6 +145,21 @@ export class TemplateWriter {
 	}
 
 	#outputReportedFiles() {
+		const LS_COLORS = (Deno.env.get('LS_COLORS') ?? 'rs=0:ln=01;36:ex=01;32').split(':').filter((col) => col !== '')
+			.map((color) => color.split('=', 2));
+		const categories = Object.fromEntries(LS_COLORS.filter(([name]) => !name.startsWith('*')));
+		const extensions = Object.fromEntries(
+			LS_COLORS.filter(([name]) => name.startsWith('*')).map(([name, color]) => [name.substring(1), color]),
+		);
+		const fileInfo = Object.fromEntries(this.#reportedFiles.map(({ filename, link, permissions }) => {
+			const isLink = link !== undefined;
+			const isExec = (permissions & 0o111) != 0;
+			const ext = path.extname(filename);
+			const color = (isLink ? categories.ln : undefined) ?? (isExec ? categories.ex : undefined) ??
+				extensions[ext] ?? categories.fi;
+			return [filename, color];
+		}));
+
 		this.#reportedFiles.sort((a, b) => a.filename < b.filename ? -1 : a.filename > b.filename ? 1 : 0);
 		const labelLength = this.#reportedFiles.reduce((length, file) => Math.max(length, file.sizeLabel.length), 0);
 		this.#reportedFiles.forEach(({ filename, link, permissions, sizeLabel }) => {
@@ -154,8 +168,14 @@ export class TemplateWriter {
 				filePerms((permissions >> 0) & 7)
 			}`;
 			const sizeString = sizeLabel.padStart(labelLength);
-			const linked = link ? ` -> ${link}` : '';
-			console.log(`${fileType}${filePermissions} ${sizeString} ${filename}${linked}`);
+			const linked = (() => {
+				if (!link) return '';
+				const fullPath = posixPath(path.join(path.dirname(filename), link));
+				const color = fileInfo[fullPath] ?? '';
+				return ` -> \x1b[${color}m${link}\x1b[m`;
+			})();
+			const color = fileInfo[filename] ?? '';
+			console.log(`${fileType}${filePermissions} ${sizeString} \x1b[${color}m${filename}\x1b[m${linked}`);
 		});
 	}
 }
