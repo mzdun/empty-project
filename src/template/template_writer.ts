@@ -8,6 +8,8 @@ import { SymlinkTemplate, Template, TemplateType, TemplateVar } from './model.ts
 import { Variables, VarType } from './variables.ts';
 import { readTemplates } from './read_templates.ts';
 
+const FALLBACK_LS_COLORS = 'rs=0:ln=01;36:ex=01;32';
+
 function filePerms(oct: number) {
 	return `${oct & 4 ? 'r' : '-'}${oct & 2 ? 'w' : '-'}${oct & 1 ? 'x' : '-'}`;
 }
@@ -145,7 +147,7 @@ export class TemplateWriter {
 	}
 
 	#outputReportedFiles() {
-		const LS_COLORS = (Deno.env.get('LS_COLORS') ?? 'rs=0:ln=01;36:ex=01;32').split(':').filter((col) => col !== '')
+		const LS_COLORS = (Deno.env.get('LS_COLORS') ?? FALLBACK_LS_COLORS).split(':').filter((col) => col !== '')
 			.map((color) => color.split('=', 2));
 		const categories = Object.fromEntries(LS_COLORS.filter(([name]) => !name.startsWith('*')));
 		const extensions = Object.fromEntries(

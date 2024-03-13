@@ -1,9 +1,11 @@
 // Copyright (c) 2024 Marcin Zdun
 // This code is licensed under MIT license (see LICENSE for details)
 
+import * as path from 'https://deno.land/std@0.218.0/path/mod.ts';
 import { Git } from './src/git/mod.ts';
 import { getArgs, printedVars } from './src/args.ts';
 import { TemplateWriter } from './src/template/mod.ts';
+import { posixPath } from './src/path.ts';
 
 export async function openDstRepo(directory: string) {
 	try {
@@ -45,8 +47,13 @@ async function _main() {
 		}
 	}));
 
-	console.log(`Creating ${args.output} from ${args.template}`);
-	const vars = printedVars(args.VARS);
+	const template = (() => {
+		if (!import.meta.dirname) return args.template;
+		return posixPath(path.join('$EP_HOME', path.relative(import.meta.dirname, args.template)));
+	})();
+
+	console.log(`Creating \x1b[0;36m${args.output}\x1b[m from \x1b[0;36m${template}\x1b[m`);
+	const vars = printedVars(args.VARS, { key: '0;33', value: '0;32' });
 	if (vars.length) {
 		console.log('Using:');
 		console.log(vars);

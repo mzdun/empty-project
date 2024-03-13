@@ -57,10 +57,13 @@ function printableTemplateDir() {
 	return `"${quoteString(posixPath(dir))}"`;
 }
 
-export function printedVars(VARS: Record<string, string | undefined>) {
+export function printedVars(VARS: Record<string, string | undefined>, colors?: { key?: string; value?: string }) {
 	return Object.entries(VARS).map((
 		[key, value],
-	) => value === undefined ? '' : ` @${key}@: "${quoteString(value)}"`).filter((line) => line !== '').join('\n');
+	) => value === undefined
+		? ''
+		: ` \x1b[${colors?.key ?? ''}m@${key}@\x1b[m: \x1b[${colors?.value ?? ''}m"${quoteString(value)}"\x1b[m`
+	).filter((line) => line !== '').join('\n');
 }
 
 function argName(arg: string) {
